@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-google-generativeai>=0.8.0
+google-generativeai
 firebase-admin
 stripe
 python-multipart

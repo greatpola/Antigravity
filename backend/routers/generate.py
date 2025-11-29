@@ -123,15 +123,13 @@ async def generate_character(
                 
             except Exception as svg_e:
                 print(f"SVG generation failed: {svg_e}")
-                # Final Fallback to placeholders
-                if gen_type == "story":
-                    image_url = "https://via.placeholder.com/1024x1024.png?text=Storyboard+Scene"
-                elif gen_type == "mockup":
-                    image_url = "https://via.placeholder.com/1024x1024.png?text=Merch+Mockup"
-                elif gen_type == "emoji":
-                    image_url = "https://via.placeholder.com/1024x1024.png?text=Emoji+Sticker"
-                else:
-                    image_url = "https://via.placeholder.com/1024x1024.png?text=Character+Render"
+                
+                # Final Fallback: Unsplash (High Quality Real Images)
+                # Use keywords from the prompt to find a relevant image
+                keywords = prompt.split(" ")[0:3] # First 3 words
+                search_term = ",".join(keywords)
+                image_url = f"https://source.unsplash.com/1024x1024/?{search_term},{gen_type}"
+                print(f"Using Unsplash fallback: {image_url}")
         
         # Save to Firestore
         try:
