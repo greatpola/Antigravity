@@ -50,6 +50,10 @@ import os
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 # 2. 그 외 모든 접속 요청에 대해 index.html을 보여줍니다. (새로고침 문제 해결)
+@app.get("/")
+async def serve_root():
+    return FileResponse("dist/index.html")
+
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
     # 파일이 존재하면 그 파일을 주고, 아니면 index.html을 줍니다 (SPA 라우팅)
