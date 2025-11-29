@@ -4,13 +4,27 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
-    const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+    const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    React.useEffect(() => {
+        if (!authLoading && user) {
+            navigate('/dashboard');
+        }
+    }, [user, authLoading, navigate]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
