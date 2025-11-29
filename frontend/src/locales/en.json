@@ -1,0 +1,30 @@
+{
+    "landing": {
+        "title": "ANTIGRAVITY",
+        "subtitle": "Defy creative limits. Transform your sketches into 3D characters, storyboards, and merchandise with AI.",
+        "cta_start": "Start Creating",
+        "cta_dashboard": "Go to Dashboard",
+        "feature_analysis": "AI Analysis",
+        "feature_analysis_desc": "Instantly analyze your character's traits and style with Gemini Vision.",
+        "feature_refine": "3D Refinement",
+        "feature_refine_desc": "Transform sketches into high-quality 3D renders automatically.",
+        "feature_assets": "Instant Assets",
+        "feature_assets_desc": "Generate storyboards, mockups, and emoticons in seconds."
+    },
+    "dashboard": {
+        "title": "ANTIGRAVITY WORKSPACE",
+        "welcome": "Welcome, {{name}}",
+        "upload_title": "Upload Character Sketch",
+        "upload_desc": "Supports JPG, PNG (Max 10MB)",
+        "btn_ignite": "Ignite Engines",
+        "status_analyzing": "Analyzing Structure...",
+        "status_refining": "Refining Geometry...",
+        "result_title": "Result",
+        "awaiting_input": "Awaiting Input...",
+        "tab_basic": "Basic",
+        "tab_story": "Story",
+        "tab_mockup": "Mockup",
+        "tab_emoji": "Emoji",
+        "btn_buy_coffee": "Buy me a coffee (Unlock All)"
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "landing": {
+        "title": "ANTIGRAVITY",
+        "subtitle": "창의력의 한계를 뛰어넘으세요. AI로 스케치를 3D 캐릭터, 스토리보드, 굿즈로 변환하세요.",
+        "cta_start": "시작하기",
+        "cta_dashboard": "대시보드로 이동",
+        "feature_analysis": "AI 분석",
+        "feature_analysis_desc": "Gemini Vision으로 캐릭터의 특징과 스타일을 즉시 분석합니다.",
+        "feature_refine": "3D 리파인",
+        "feature_refine_desc": "스케치를 고품질 3D 렌더링으로 자동 변환합니다.",
+        "feature_assets": "즉시 자산 생성",
+        "feature_assets_desc": "스토리보드, 목업, 이모티콘을 몇 초 만에 생성합니다."
+    },
+    "dashboard": {
+        "title": "ANTIGRAVITY 워크스페이스",
+        "welcome": "환영합니다, {{name}}님",
+        "upload_title": "캐릭터 스케치 업로드",
+        "upload_desc": "JPG, PNG 지원 (최대 10MB)",
+        "btn_ignite": "엔진 점화",
+        "status_analyzing": "구조 분석 중...",
+        "status_refining": "지오메트리 정제 중...",
+        "result_title": "결과",
+        "awaiting_input": "입력 대기 중...",
+        "tab_basic": "기본",
+        "tab_story": "스토리",
+        "tab_mockup": "목업",
+        "tab_emoji": "이모티콘",
+        "btn_buy_coffee": "커피 사주기 (전체 잠금 해제)"
+    }
+}
