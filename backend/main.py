@@ -6,6 +6,7 @@ from config import get_db
 app = FastAPI(title="Antigravity API", version="1.0.0")
 
 # CORS Configuration
+origins = [
     "http://localhost:5173",
     "https://studio-76b7b.web.app",
     "https://studio-76b7b.firebaseapp.com",
