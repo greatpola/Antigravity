@@ -30,6 +30,11 @@ export const generateCharacter = async (prompt: string, style: string, type: str
     return response.data;
 };
 
+export const modifyCharacter = async (projectId: string, modificationPrompt: string) => {
+    const response = await api.post('/generate/modify', { projectId, modificationPrompt });
+    return response.data;
+};
+
 export const createCheckoutSession = async () => {
     const response = await api.post('/payments/create-checkout-session');
     return response.data;

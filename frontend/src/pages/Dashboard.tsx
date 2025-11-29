@@ -80,6 +80,43 @@ const Dashboard: React.FC = () => {
         }
     };
 
+    // Modification State
+    const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
+    const [modificationPrompt, setModificationPrompt] = useState('');
+    const [modifying, setModifying] = useState(false);
+
+    // Handle Modification
+    const handleModify = async () => {
+        if (!modificationPrompt) return;
+
+        // Check Limits
+        if (!isPremium && modCount >= 1 && credits < 1) {
+            alert("You have used your free modification. Please buy credits!");
+            return;
+        }
+
+        setModifying(true);
+        try {
+            // We need a dummy project ID for now since we aren't tracking project history in frontend state perfectly yet
+            // In a real app, we'd pass the actual project ID of the current image
+            const dummyProjectId = "current-session-project";
+            const result = await import('../lib/api').then(m => m.modifyCharacter(dummyProjectId, modificationPrompt));
+            setGeneratedImage(result.image_url);
+            await refreshProfile();
+            setIsModifyModalOpen(false);
+            setModificationPrompt('');
+        } catch (error: any) {
+            console.error("Modification failed", error);
+            if (error.response?.status === 402) {
+                alert("Insufficient credits!");
+            } else {
+                alert("Modification failed. Please try again.");
+            }
+        } finally {
+            setModifying(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#F8F9FA] text-gray-900 font-sans">
             {/* Header */}
@@ -213,9 +250,9 @@ const Dashboard: React.FC = () => {
                                     <Download className="w-6 h-6" />
                                 </a>
                                 <button
-                                    onClick={() => alert("Modification feature coming soon!")}
+                                    onClick={() => setIsModifyModalOpen(true)}
                                     className="p-4 bg-white rounded-full text-gray-900 hover:scale-110 transition-transform shadow-xl"
-                                    title="Modify (Coming Soon)"
+                                    title="Modify"
                                 >
                                     <RefreshCw className="w-6 h-6" />
                                 </button>
@@ -232,6 +269,44 @@ const Dashboard: React.FC = () => {
                 </section>
 
             </main>
+
+            {/* Modification Modal */}
+            {isModifyModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <RefreshCw className="w-5 h-5 text-primary" />
+                            Modify Character
+                        </h3>
+                        <p className="text-gray-500 mb-4 text-sm">
+                            Describe how you want to change the character (e.g., "Make the hoodie red", "Add sunglasses").
+                        </p>
+                        <textarea
+                            value={modificationPrompt}
+                            onChange={(e) => setModificationPrompt(e.target.value)}
+                            placeholder="Enter modification details..."
+                            className="w-full h-32 bg-gray-50 border border-gray-200 rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mb-4"
+                            disabled={modifying}
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setIsModifyModalOpen(false)}
+                                className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-xl font-medium transition-colors"
+                                disabled={modifying}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleModify}
+                                disabled={modifying || !modificationPrompt}
+                                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold shadow-lg shadow-primary/20 flex items-center gap-2"
+                            >
+                                {modifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
