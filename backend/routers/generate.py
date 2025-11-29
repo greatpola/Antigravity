@@ -34,6 +34,11 @@ async def generate_character(
         gen_type = request.get("type", "basic")
         print(f"Received generation request: Prompt='{prompt}', Style='{style}', Type='{gen_type}', User='{user_data['uid']}'")
         
+        import os
+        if not os.getenv("GOOGLE_API_KEY"):
+            print("CRITICAL: GOOGLE_API_KEY is not set!")
+            raise HTTPException(status_code=500, detail="Server Configuration Error: API Key missing.")
+        
         # Check Credits
         db = get_db()
         if not db:
