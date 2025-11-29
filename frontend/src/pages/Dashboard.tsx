@@ -1,105 +1,72 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { analyzeImage, generateCharacter, createCheckoutSession } from '../lib/api';
-import { Upload, Loader2, Wand2, LogOut, Coffee, Lock, Zap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Loader2, Wand2, Coffee, Zap, Download, RefreshCw, Image as ImageIcon } from 'lucide-react';
+
+const STYLE_TAGS = [
+    "3D Render", "Anime", "Pixel Art", "Watercolor", "Cyberpunk",
+    "Oil Painting", "Sketch", "Flat Design", "Realistic", "Cartoon"
+];
 
 const Dashboard: React.FC = () => {
-    const { user, profile, refreshProfile, logout } = useAuth();
-    const { t } = useTranslation();
-    const navigate = useNavigate();
-    const [file, setFile] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
-    const [analysis, setAnalysis] = useState<string | null>(null);
+    const { profile, refreshProfile } = useAuth();
+
+    // State
+    const [prompt, setPrompt] = useState('');
+    const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState<'upload' | 'analyzing' | 'refining' | 'done'>('upload');
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    const [activeTab, setActiveTab] = useState('Basic');
-    const [assets, setAssets] = useState<Record<string, string>>({});
-    const [generatingAsset, setGeneratingAsset] = useState(false);
-
-    // Real Premium Status
+    // Usage Limits Display
+    const genCount = profile?.generation_count || 0;
+    const modCount = profile?.modification_count || 0;
     const isPremium = profile?.isPremium || false;
+    const credits = profile?.credits || 0;
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Handle Image Upload & Analysis
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const selectedFile = e.target.files[0];
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
+            const file = e.target.files[0];
+            setIsAnalyzing(true);
+            try {
+                const result = await analyzeImage(file);
+                setPrompt(result.description);
+                if (result.style) setSelectedStyle(result.style);
+            } catch (error) {
+                console.error("Analysis failed", error);
+                alert("Failed to analyze image.");
+            } finally {
+                setIsAnalyzing(false);
+            }
         }
     };
 
-    const handleProcess = async () => {
-        if (!file) return;
-        if ((profile?.credits || 0) < 1) {
-            alert("Insufficient credits! Please buy more coffee.");
+    // Handle Generation
+    const handleGenerate = async () => {
+        if (!prompt) return;
+
+        // Check Limits (Frontend Check)
+        if (!isPremium && genCount >= 1 && credits < 1) {
+            alert("You have used your free generation. Please buy credits!");
             return;
         }
 
         setLoading(true);
-        setStep('analyzing');
-        setAssets({}); // Reset assets
-        setActiveTab('Basic');
-
         try {
-            // 1. Analyze
-            const analysisResult = await analyzeImage(file);
-            setAnalysis(analysisResult.description);
-            const detectedStyle = analysisResult.style || "3D Render";
-
-            setStep('refining');
-
-            // 2. Generate (Basic)
-            // Use the analysis description as the prompt
-            const prompt = analysisResult.description;
-            const generationResult = await generateCharacter(prompt, detectedStyle, "basic");
-
-            setGeneratedImage(generationResult.image_url);
-            setAssets(prev => ({ ...prev, Basic: generationResult.image_url }));
-            setStep('done');
-
-            // Refresh credits
-            await refreshProfile();
-
+            const style = selectedStyle || "3D Render";
+            const result = await generateCharacter(prompt, style, "basic");
+            setGeneratedImage(result.image_url);
+            await refreshProfile(); // Update counts
         } catch (error: any) {
-            console.error("Processing failed", error);
+            console.error("Generation failed", error);
             if (error.response?.status === 402) {
                 alert("Insufficient credits!");
             } else {
-                alert("Something went wrong. Check console.");
+                alert("Generation failed. Please try again.");
             }
-            setStep('upload');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleTabChange = async (tab: string) => {
-        const isLocked = tab !== 'Basic' && !isPremium;
-        if (isLocked) return;
-
-        setActiveTab(tab);
-
-        // If asset already exists, don't regenerate
-        if (assets[tab]) {
-            setGeneratedImage(assets[tab]);
-            return;
-        }
-
-        // Generate Asset
-        setGeneratingAsset(true);
-        try {
-            // Use the stored analysis as the prompt
-            const prompt = analysis || "A high quality 3D character";
-            const result = await generateCharacter(prompt, "3D Render", tab.toLowerCase());
-            setAssets(prev => ({ ...prev, [tab]: result.image_url }));
-            setGeneratedImage(result.image_url);
-        } catch (error) {
-            console.error("Asset generation failed", error);
-        } finally {
-            setGeneratingAsset(false);
         }
     };
 
@@ -114,123 +81,156 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background text-foreground p-8">
-            <header className="flex justify-between items-center mb-12">
-                <h1 className="text-3xl font-bold text-gradient">{t('dashboard.title')}</h1>
+        <div className="min-h-screen bg-[#F8F9FA] text-gray-900 font-sans">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">A</div>
+                    <span className="font-bold text-xl tracking-tight">Antigravity</span>
+                </div>
+
                 <div className="flex items-center gap-4">
-                    <div className="bg-white/10 px-4 py-2 rounded-full flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-yellow-500" />
-                        <span className="font-bold">{profile?.credits || 0} Credits</span>
+                    {/* Credits Badge */}
+                    <div className="hidden md:flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-600">
+                        <Zap className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span>{credits} Credits</span>
                     </div>
 
                     {!isPremium && (
                         <button
                             onClick={handleBuyCoffee}
-                            className="px-4 py-2 bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 rounded-full flex items-center gap-2 hover:bg-yellow-500/30 transition-colors"
+                            className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 transition-all"
                         >
-                            <Coffee className="w-4 h-4" /> {t('dashboard.btn_buy_coffee')}
+                            <Coffee className="w-4 h-4" /> Support Dev
                         </button>
                     )}
-                    <button onClick={() => navigate('/mypage')} className="hover:text-primary transition-colors">
-                        {t('dashboard.welcome', { name: profile?.name || user?.displayName || 'User' })}
-                    </button>
-                    <button onClick={logout} className="p-2 hover:bg-white/10 rounded-full">
-                        <LogOut className="w-5 h-5" />
-                    </button>
+
+                    <div className="h-8 w-8 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                        {/* User Avatar Placeholder */}
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-xs">
+                            {profile?.name?.[0] || "U"}
+                        </div>
+                    </div>
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* Left Panel: Input */}
-                <div className="glass-panel p-8 rounded-3xl flex flex-col items-center justify-center min-h-[500px] border-dashed border-2 border-white/20 relative">
-                    {preview ? (
-                        <img src={preview} alt="Preview" className="max-h-[400px] rounded-xl object-contain mb-6" />
-                    ) : (
-                        <div className="text-center">
-                            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Upload className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <p className="text-xl font-medium mb-2">{t('dashboard.upload_title')}</p>
-                            <p className="text-gray-500 mb-6">{t('dashboard.upload_desc')}</p>
+            <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
+
+                {/* Input Section */}
+                <section className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 md:p-8">
+                    <div className="flex items-center gap-2 mb-4 text-primary font-bold">
+                        <Wand2 className="w-5 h-5" />
+                        <h2>What character shall we make?</h2>
+                    </div>
+
+                    <div className="relative">
+                        <textarea
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="Ex: A playful rabbit in a blue hoodie, 3D render style..."
+                            className="w-full h-32 md:h-40 bg-gray-50 border border-gray-200 rounded-2xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-lg placeholder:text-gray-400"
+                            disabled={loading || isAnalyzing}
+                        />
+
+                        {/* Image Upload Button inside Textarea */}
+                        <div className="absolute bottom-4 left-4">
+                            <label className="cursor-pointer flex items-center gap-2 text-gray-400 hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100">
+                                <ImageIcon className="w-5 h-5" />
+                                <span className="text-sm font-medium hidden md:inline">Analyze Image</span>
+                                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" disabled={loading || isAnalyzing} />
+                            </label>
                         </div>
-                    )}
 
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        disabled={loading}
-                    />
+                        {/* Generate Button */}
+                        <div className="absolute bottom-4 right-4">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={loading || isAnalyzing || !prompt}
+                                className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-primary/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                            >
+                                {loading || isAnalyzing ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        Generate <Wand2 className="w-4 h-4" />
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
 
-                    {file && !loading && step === 'upload' && (
-                        <button
-                            onClick={handleProcess}
-                            className="z-10 px-8 py-3 bg-primary rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
-                        >
-                            <Wand2 className="w-5 h-5" /> {t('dashboard.btn_ignite')}
+                    {/* Style Tags */}
+                    <div className="mt-6 flex flex-wrap gap-2">
+                        {STYLE_TAGS.map(style => (
+                            <button
+                                key={style}
+                                onClick={() => setSelectedStyle(style)}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedStyle === style
+                                    ? "bg-primary/10 text-primary border border-primary/20"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent"
+                                    }`}
+                            >
+                                {style}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Usage Info Banner */}
+                <section className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500">
+                            <Zap className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-indigo-900">Credits are used for generation.</h3>
+                            <p className="text-sm text-indigo-700">Free: {1 - genCount > 0 ? 1 - genCount : 0} Gen left / {1 - modCount > 0 ? 1 - modCount : 0} Mod left</p>
+                        </div>
+                    </div>
+                    {!isPremium && (
+                        <button onClick={handleBuyCoffee} className="px-5 py-2 bg-white text-indigo-600 font-bold rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-50 transition-colors text-sm">
+                            Support Developer
                         </button>
                     )}
+                </section>
 
-                    {loading && (
-                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center rounded-3xl z-20">
-                            <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                            <p className="text-xl font-bold animate-pulse">
-                                {step === 'analyzing' ? t('dashboard.status_analyzing') : t('dashboard.status_refining')}
-                            </p>
-                        </div>
-                    )}
-                </div>
+                {/* Result Area */}
+                <section className="min-h-[400px] border-2 border-dashed border-gray-200 rounded-3xl flex items-center justify-center bg-gray-50/50 relative overflow-hidden">
+                    {generatedImage ? (
+                        <div className="relative w-full h-full min-h-[400px] group">
+                            <img src={generatedImage} alt="Generated Result" className="w-full h-full object-contain max-h-[600px]" />
 
-                {/* Right Panel: Output */}
-                <div className="glass-panel p-8 rounded-3xl flex flex-col min-h-[500px]">
-                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <span className="w-2 h-8 bg-accent rounded-full" /> {t('dashboard.result_title')}
-                    </h2>
-
-                    {step === 'done' && generatedImage ? (
-                        <div className="flex-1 flex flex-col">
-                            <div className="flex-1 bg-black/20 rounded-xl overflow-hidden mb-6 relative group">
-                                {generatingAsset ? (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                                    </div>
-                                ) : null}
-                                <img src={generatedImage} alt="Generated" className="w-full h-full object-cover transition-opacity duration-300" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                                    <p className="text-white/80 text-sm line-clamp-3">{analysis}</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-4">
-                                {['Basic', 'Story', 'Mockup', 'Emoji'].map((tab) => {
-                                    const isLocked = tab !== 'Basic' && !isPremium;
-                                    const isActive = activeTab === tab;
-                                    const tabKey = `tab_${tab.toLowerCase()}`;
-                                    return (
-                                        <button
-                                            key={tab}
-                                            onClick={() => handleTabChange(tab)}
-                                            className={`p-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors ${isLocked
-                                                ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                                : isActive
-                                                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                                                    : 'bg-white/10 hover:bg-white/20 text-white'
-                                                }`}
-                                            disabled={isLocked}
-                                        >
-                                            {t(`dashboard.${tabKey}` as any)} {isLocked && <Lock className="w-3 h-3" />}
-                                        </button>
-                                    );
-                                })}
+                            {/* Overlay Actions */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                                <a
+                                    href={generatedImage}
+                                    download="antigravity-character.png"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-4 bg-white rounded-full text-gray-900 hover:scale-110 transition-transform shadow-xl"
+                                    title="Download"
+                                >
+                                    <Download className="w-6 h-6" />
+                                </a>
+                                <button
+                                    onClick={() => alert("Modification feature coming soon!")}
+                                    className="p-4 bg-white rounded-full text-gray-900 hover:scale-110 transition-transform shadow-xl"
+                                    title="Modify (Coming Soon)"
+                                >
+                                    <RefreshCw className="w-6 h-6" />
+                                </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-gray-600">
-                            <p>{t('dashboard.awaiting_input')}</p>
+                        <div className="text-center text-gray-400">
+                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <ImageIcon className="w-8 h-8 opacity-50" />
+                            </div>
+                            <p>Enter a description and press Generate</p>
                         </div>
                     )}
-                </div>
+                </section>
+
             </main>
         </div>
     );

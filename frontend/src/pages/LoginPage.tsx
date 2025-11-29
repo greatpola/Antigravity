@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Github } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
-    const { signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail } = useAuth();
+    const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -37,18 +37,6 @@ const LoginPage: React.FC = () => {
             navigate('/dashboard');
         } catch (err) {
             setError('Failed to sign in with Google');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGithubSignIn = async () => {
-        try {
-            setLoading(true);
-            await signInWithGithub();
-            navigate('/dashboard');
-        } catch (err) {
-            setError('Failed to sign in with GitHub');
         } finally {
             setLoading(false);
         }
@@ -125,7 +113,7 @@ const LoginPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                         <button
                             onClick={handleGoogleSignIn}
                             disabled={loading}
@@ -149,16 +137,7 @@ const LoginPage: React.FC = () => {
                                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                                 />
                             </svg>
-                            Google
-                        </button>
-
-                        <button
-                            onClick={handleGithubSignIn}
-                            disabled={loading}
-                            className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                            <Github className="w-5 h-5" />
-                            GitHub
+                            Continue with Google
                         </button>
                     </div>
 

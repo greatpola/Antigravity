@@ -18,26 +18,6 @@ async def analyze_image(
     try:
         # Read image file
         contents = await file.read()
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from routers.auth import verify_token
-import google.generativeai as genai
-from PIL import Image
-import io
-
-router = APIRouter(prefix="/analyze", tags=["analyze"])
-
-@router.post("/")
-async def analyze_image(
-    file: UploadFile = File(...),
-    user_data: dict = Depends(verify_token)
-):
-    """
-    Upload an image and analyze it using Gemini Vision Pro.
-    Returns a structured description of the character.
-    """
-    try:
-        # Read image file
-        contents = await file.read()
         image = Image.open(io.BytesIO(contents))
 
         # Prepare Gemini Model

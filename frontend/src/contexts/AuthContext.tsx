@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { type User, onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, googleProvider, githubProvider } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import { getUserProfile } from '../lib/api';
 
 interface UserProfile {
@@ -9,6 +9,8 @@ interface UserProfile {
     name: string;
     credits: number;
     isPremium: boolean;
+    generation_count?: number;
+    modification_count?: number;
 }
 
 interface AuthContextType {
@@ -17,7 +19,6 @@ interface AuthContextType {
     loading: boolean;
     refreshProfile: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
-    signInWithGithub: () => Promise<void>;
     signInWithEmail: (email: string, pass: string) => Promise<void>;
     signUpWithEmail: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -63,14 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const signInWithGithub = async () => {
-        try {
-            await signInWithPopup(auth, githubProvider);
-        } catch (error) {
-            console.error("Error signing in with Github", error);
-            throw error;
-        }
-    };
 
     const signInWithEmail = async (email: string, pass: string) => {
         try {
@@ -100,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, profile, loading, refreshProfile, signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail, logout }}>
+        <AuthContext.Provider value={{ user, profile, loading, refreshProfile, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }}>
             {children}
         </AuthContext.Provider>
     );

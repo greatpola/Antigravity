@@ -23,8 +23,16 @@ if not firebase_admin._apps:
         cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
+        print("Firebase Admin initialized with credentials file.")
     else:
-        print("Warning: Firebase credentials not found. Firestore will not be available.")
+        # Fallback to Application Default Credentials (Cloud Run)
+        try:
+            firebase_admin.initialize_app()
+            db = firestore.client()
+            print("Firebase Admin initialized with Default Credentials.")
+        except Exception as e:
+            print(f"Warning: Could not initialize Firebase Admin: {e}")
+            db = None
 else:
     db = firestore.client()
 

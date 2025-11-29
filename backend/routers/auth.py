@@ -44,7 +44,13 @@ async def get_current_user(user_data: dict = Depends(verify_token)):
                 profile.update(data)
             else:
                 # Create initial user doc if not exists
-                initial_data = {"credits": 5, "isPremium": False, "email": user_data.get("email")}
+                initial_data = {
+                    "credits": 0, 
+                    "isPremium": False, 
+                    "email": user_data.get("email"),
+                    "generation_count": 0,
+                    "modification_count": 0
+                }
                 doc_ref.set(initial_data)
                 profile.update(initial_data)
     except Exception as e:

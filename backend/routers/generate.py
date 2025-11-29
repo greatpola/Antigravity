@@ -32,6 +32,7 @@ async def generate_character(
         prompt = request.get("prompt")
         style = request.get("style")
         gen_type = request.get("type", "basic")
+        print(f"Received generation request: Prompt='{prompt}', Style='{style}', Type='{gen_type}', User='{user_data['uid']}'")
         
         # Check Credits
         db = get_db()
@@ -40,85 +41,97 @@ async def generate_character(
             
         user_ref = db.collection('users').document(user_data['uid'])
         
-        # Transaction to safely deduct credit
+        # Transaction to safely check limits and deduct credit
         @firestore.transactional
-        def deduct_credit(transaction, doc_ref):
+        def check_and_deduct(transaction, doc_ref):
             snapshot = doc_ref.get(transaction=transaction)
             if not snapshot.exists:
-                # Should have been created by /me or webhook, but handle just in case
-                transaction.set(doc_ref, {"credits": 5, "isPremium": False})
-                return 5
+                # Initialize if missing
+                initial_data = {
+                    "credits": 0, 
+                    "isPremium": False,
+                    "generation_count": 0,
+                    "modification_count": 0
+                }
+                transaction.set(doc_ref, initial_data)
+                return "free" # First one is free
             
-            credits = snapshot.get("credits")
+            data = snapshot.to_dict()
+            gen_count = data.get("generation_count", 0)
+            credits = data.get("credits", 0)
+            
+            # Logic: 1 Free Generation
+            if gen_count < 1:
+                transaction.update(doc_ref, {"generation_count": firestore.Increment(1)})
+                return "free"
+            
+            # Otherwise, check credits
             if credits < 1:
                 raise ValueError("Insufficient credits")
             
-            transaction.update(doc_ref, {"credits": firestore.Increment(-1)})
-            return credits - 1
+            transaction.update(doc_ref, {
+                "credits": firestore.Increment(-1),
+                "generation_count": firestore.Increment(1)
+            })
+            return "paid"
 
         try:
             transaction = db.transaction()
-            deduct_credit(transaction, user_ref)
+            status = check_and_deduct(transaction, user_ref)
+            print(f"Generation status: {status}")
         except ValueError as e:
-            raise HTTPException(status_code=402, detail="Insufficient credits. Please upgrade or buy more.")
+            raise HTTPException(status_code=402, detail="Insufficient credits. You have used your free generation. Please upgrade.")
         except Exception as e:
             print(f"Transaction failed: {e}")
-            # Continue for now if DB fails, or raise error? 
-            # For MVP, let's raise to ensure data integrity
             raise HTTPException(status_code=500, detail="Transaction failed")
 
+        # Refine Prompt (Simple concatenation for now to save latency, or use Gemini Text model)
+        refined_prompt = f"{prompt}, {style} style"
+        
         # Generate Image
         image_url = "https://via.placeholder.com/1024x1024.png?text=Generation+Failed"
         
         try:
-            # Try to use Imagen model
-            # Note: This requires the 'imagen-3.0-generate-001' or similar model to be available to the API key
-            # and the google-generativeai library version to support it.
-            # If not available, we catch the error and use placeholder (or could use a different API).
-            
             # Construct the full prompt
             full_prompt = f"{refined_prompt}. High quality, detailed, 8k."
             
-            # For this environment, we might not have access to the image generation model directly via this SDK version
-            # or the specific model might be gated. 
-            # However, we will attempt to structure it correctly.
-            
-            # Check if we can list models to find an image one? 
-            # For now, let's try the standard way if available, or fallback.
-            
-            # MOCKING FOR SAFETY IN THIS ENVIRONMENT AS WE DON'T HAVE CONFIRMED IMAGEN ACCESS
-            # BUT WRITING THE CODE THAT WOULD WORK IF ENABLED:
-            
-            # model = genai.GenerativeModel('imagen-3.0-generate-001')
-            # result = model.generate_images(
-            #     prompt=full_prompt,
-            #     number_of_images=1,
-            # )
-            # image_url = result.images[0].url # Or however the response is structured
-            
-            # Since we can't guarantee the API access here, we will simulate a "Real" delay and return a better placeholder
-            # that represents the "Real" integration point.
-            
-            import time
-            time.sleep(2) # Simulate generation time
-            
-            # In a real deployment with Vertex AI or paid Gemini API:
-            # from google.cloud import aiplatform
-            # ... (Vertex AI Image Gen Code) ...
-            
-            # For now, we return a specific placeholder based on type to show it "worked"
-            if gen_type == "story":
-                image_url = "https://via.placeholder.com/1024x1024.png?text=Storyboard+Scene"
-            elif gen_type == "mockup":
-                image_url = "https://via.placeholder.com/1024x1024.png?text=Merch+Mockup"
-            elif gen_type == "emoji":
-                image_url = "https://via.placeholder.com/1024x1024.png?text=Emoji+Sticker"
-            else:
-                image_url = "https://via.placeholder.com/1024x1024.png?text=Character+Render"
+            # Try to use Imagen model
+            # Note: This requires the 'imagen-3.0-generate-001' or similar model to be available to the API key
+            model = genai.GenerativeModel('imagen-3.0-generate-001')
+            result = model.generate_images(
+                prompt=full_prompt,
+                number_of_images=1,
+            )
+            image_url = result.images[0].url
                 
         except Exception as e:
             print(f"Image generation failed: {e}")
-            # Fallback is already set
+            
+            # Fallback: Generate SVG using Gemini
+            try:
+                print("Attempting SVG generation fallback...")
+                svg_model = genai.GenerativeModel('gemini-1.5-pro')
+                svg_prompt = f"Generate a simple, cute SVG code for a {refined_prompt}. Return ONLY the SVG code, no markdown."
+                svg_response = svg_model.generate_content(svg_prompt)
+                svg_content = svg_response.text.replace("```svg", "").replace("```", "").strip()
+                
+                # Encode SVG to Data URI
+                import base64
+                encoded_svg = base64.b64encode(svg_content.encode('utf-8')).decode('utf-8')
+                image_url = f"data:image/svg+xml;base64,{encoded_svg}"
+                print("SVG generation successful")
+                
+            except Exception as svg_e:
+                print(f"SVG generation failed: {svg_e}")
+                # Final Fallback to placeholders
+                if gen_type == "story":
+                    image_url = "https://via.placeholder.com/1024x1024.png?text=Storyboard+Scene"
+                elif gen_type == "mockup":
+                    image_url = "https://via.placeholder.com/1024x1024.png?text=Merch+Mockup"
+                elif gen_type == "emoji":
+                    image_url = "https://via.placeholder.com/1024x1024.png?text=Emoji+Sticker"
+                else:
+                    image_url = "https://via.placeholder.com/1024x1024.png?text=Character+Render"
         
         # Save to Firestore
         try:
@@ -143,4 +156,7 @@ async def generate_character(
         }
 
     except Exception as e:
+        print(f"CRITICAL ERROR in generate_character: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
